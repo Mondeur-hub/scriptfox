@@ -39,7 +39,7 @@ button.submit{width:100%;padding:15px;background:#00d4ff;border:none;color:#000;
 </head>
 <body>
 
-<div class="header"><div class="logo">🦊 ScriptFox</div></div>
+<div class="header"><div class="logo"> ScriptFox</div></div>
 
 <div class="nav">
 <button class="active" onclick="showTab('upload')">Upload</button>
@@ -92,7 +92,7 @@ button.submit{width:100%;padding:15px;background:#00d4ff;border:none;color:#000;
 </div>
 
 <div class="modal" id="pm"><div class="modal-content">
-<h3>🔒 Owner Login</h3>
+<h3> Owner Login</h3>
 <input type="password" id="pi" placeholder="Password">
 <button class="submit" onclick="checkOwner()">Login</button>
 <p id="pe" style="color:#ff4757;display:none">Wrong!</p>
@@ -100,9 +100,39 @@ button.submit{width:100%;padding:15px;background:#00d4ff;border:none;color:#000;
 
 <div class="toast" id="toast"></div>
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.4/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.6.4/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCvyceW-xg9thFEblncqSg8PVJFG3DKo5w",
+    authDomain: "scriptfox.firebaseapp.com",
+    projectId: "scriptfox",
+    storageBucket: "scriptfox.firebasestorage.app",
+    messagingSenderId: "717661571463",
+    appId: "1:717661571463:web:64b828b3437aa0645eeb22",
+    measurementId: "G-GCG0HC0YED"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Sync Global Scripts from Database
+  onValue(ref(db, 'scripts/'), (snapshot) => {
+    window.scripts = snapshot.val() || [];
+    renderScripts();
+    if(isOwner) renderOwner();
+  });
+
+  // Global Save Function
+  window.saveToFirebase = function(data) {
+    set(ref(db, 'scripts/'), data);
+  };
+</script>
+
 <script>
 var OWNER='Ilovesofia26';
-var scripts=JSON.parse(localStorage.getItem('scripts'))||[];
+window.scripts=[]; // Managed by Firebase now
 var favs=JSON.parse(localStorage.getItem('favs'))||[];
 var isOwner=false;
 var ownerMode=false;
@@ -127,12 +157,12 @@ var GAMES={
 '5732973455':['SCP','SCP']
 };
 
-if(!scripts.length){
-scripts=[{id:1,title:'Demo',gameId:'2753915549',gameName:'Blox Fruits',gameCreator:'Gamer',type:'autofarm',code:'--demo',desc:'Demo',status:'approved',author:'Owner',date:'Now',isOwner:true}];
-save();
+function save(){
+    if(window.saveToFirebase){
+        window.saveToFirebase(window.scripts);
+    }
+    localStorage.setItem('favs',JSON.stringify(favs));
 }
-
-function save(){localStorage.setItem('scripts',JSON.stringify(scripts));localStorage.setItem('favs',JSON.stringify(favs));}
 
 function showTab(n){
 document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'));
@@ -182,7 +212,7 @@ var p=document.getElementById('pw').value;
 if(!t||!g||!c){toast('Fill all fields!','e');return;}
 if(ownerMode&&p!=OWNER){toast('Wrong password!','e');return;}
 
-scripts.push({
+window.scripts.push({
 id:Date.now(),
 title:t,
 gameId:g,
@@ -210,21 +240,21 @@ currentGame=null;
 
 function renderScripts(){
 var q=document.getElementById('s').value.toLowerCase();
-var a=scripts.filter(s=>s.status=='approved'&&(!q||s.title.toLowerCase().includes(q)||s.gameName.toLowerCase().includes(q)));
+var a=window.scripts.filter(s=>s.status=='approved'&&(!q||s.title.toLowerCase().includes(q)||s.gameName.toLowerCase().includes(q)));
 var h='';
 for(var i=0;i<a.length;i++){
 var s=a[i];
-h+='<div class="card"><h4>'+esc(s.title)+(s.isOwner?' <span style="color:#00d4ff">✓</span>':'')+'</h4><p>🎮 '+esc(s.gameName)+'</p><div style="background:#0f0f1a;padding:10px;font-family:monospace;font-size:12px;color:#00ff88">'+esc(s.code.slice(0,50))+'...</div><div class="actions"><button class="btn-primary" onclick="view('+s.id+')">View</button><button class="btn-success" onclick="copy('+s.id+')">Copy</button><button onclick="addFav('+s.id+')" style="background:'+(favs.includes(s.id)?'#ffd700':'#2a2a4a')+'">★</button></div></div>';
+h+='<div class="card"><h4>'+esc(s.title)+(s.isOwner?' <span style="color:#00d4ff"></span>':'')+'</h4><p> '+esc(s.gameName)+'</p><div style="background:#0f0f1a;padding:10px;font-family:monospace;font-size:12px;color:#00ff88">'+esc(s.code.slice(0,50))+'...</div><div class="actions"><button class="btn-primary" onclick="view('+s.id+')">View</button><button class="btn-success" onclick="copy('+s.id+')">Copy</button><button onclick="addFav('+s.id+')" style="background:'+(favs.includes(s.id)?'#ffd700':'#2a2a4a')+'"></button></div></div>';
 }
 document.getElementById('sl').innerHTML=h||'<p style="text-align:center;color:#666">No scripts</p>';
 }
 
 function renderFavs(){
-var f=scripts.filter(s=>favs.includes(s.id)&&s.status=='approved');
+var f=window.scripts.filter(s=>favs.includes(s.id)&&s.status=='approved');
 var h='';
 for(var i=0;i<f.length;i++){
 var s=f[i];
-h+='<div class="card"><h4>'+esc(s.title)+'</h4><p>🎮 '+esc(s.gameName)+'</p><div class="actions"><button class="btn-primary" onclick="view('+s.id+')">View</button><button class="btn-danger" onclick="remFav('+s.id+')">Remove</button></div></div>';
+h+='<div class="card"><h4>'+esc(s.title)+'</h4><p> '+esc(s.gameName)+'</p><div class="actions"><button class="btn-primary" onclick="view('+s.id+')">View</button><button class="btn-danger" onclick="remFav('+s.id+')">Remove</button></div></div>';
 }
 document.getElementById('fl').innerHTML=h||'<p style="text-align:center;color:#666">No favorites</p>';
 }
@@ -249,7 +279,7 @@ toast('Removed!');
 }
 
 function copy(id){
-var s=scripts.find(x=>x.id==id);
+var s=window.scripts.find(x=>x.id==id);
 var t=document.createElement('textarea');
 t.value=s.code;
 document.body.appendChild(t);
@@ -260,7 +290,7 @@ toast('Copied!');
 }
 
 function view(id){
-var s=scripts.find(x=>x.id==id);
+var s=window.scripts.find(x=>x.id==id);
 var w=window.open('','_blank');
 w.document.write('<pre style="background:#0f0f1a;color:#00ff88;padding:20px">'+esc(s.code)+'</pre>');
 }
@@ -288,11 +318,11 @@ document.getElementById('pe').style.display='block';
 }
 
 function renderOwner(){
-var p=scripts.filter(s=>s.status=='pending');
-var a=scripts.filter(s=>s.status=='approved');
+var p=window.scripts.filter(s=>s.status=='pending');
+var a=window.scripts.filter(s=>s.status=='approved');
 document.getElementById('sp').textContent=p.length;
 document.getElementById('sa').textContent=a.length;
-document.getElementById('st').textContent=scripts.length;
+document.getElementById('st').textContent=window.scripts.length;
 
 var h='';
 for(var i=0;i<p.length;i++){
@@ -304,13 +334,13 @@ document.getElementById('pl').innerHTML=h||'<p style="color:#666">No pending</p>
 h='';
 for(var i=0;i<a.length;i++){
 var s=a[i];
-h+='<div class="card" style="border-left:3px solid #00ff88"><h4>'+esc(s.title)+'</h4><p>'+(s.isOwner?'👑':'👤')+' | '+s.date+'</p><button class="btn-danger" onclick="del('+s.id+')" style="width:100%;margin-top:10px">Delete</button></div>';
+h+='<div class="card" style="border-left:3px solid #00ff88"><h4>'+esc(s.title)+'</h4><p>'+(s.isOwner?'':'')+' | '+s.date+'</p><button class="btn-danger" onclick="del('+s.id+')" style="width:100%;margin-top:10px">Delete</button></div>';
 }
 document.getElementById('al').innerHTML=h||'<p style="color:#666">No approved</p>';
 }
 
 function app(id){
-var s=scripts.find(x=>x.id==id);
+var s=window.scripts.find(x=>x.id==id);
 s.status='approved';
 save();
 renderOwner();
@@ -318,7 +348,7 @@ toast('Approved!');
 }
 
 function rej(id){
-scripts=scripts.filter(x=>x.id!=id);
+window.scripts=window.scripts.filter(x=>x.id!=id);
 save();
 renderOwner();
 toast('Rejected!');
@@ -326,7 +356,7 @@ toast('Rejected!');
 
 function del(id){
 if(confirm('Delete?')){
-scripts=scripts.filter(x=>x.id!=id);
+window.scripts=window.scripts.filter(x=>x.id!=id);
 save();
 renderOwner();
 toast('Deleted!');
