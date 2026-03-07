@@ -13,15 +13,11 @@
         .nav button.active{background:#00d4ff;color:#000;border-color:#00d4ff}
         .container{max-width:800px;margin:0 auto;padding:20px}
         .box{background:#16162a;border-radius:10px;padding:20px;margin-bottom:20px;border:1px solid #2a2a4a}
-        input,select,textarea{width:100%;padding:10px;margin:5px 0;background:#0f0f1a;border:1px solid #2a2a4a;color:#fff;border-radius:5px}
-        textarea{height:100px}
+        input,textarea{width:100%;padding:10px;margin:5px 0;background:#0f0f1a;border:1px solid #2a2a4a;color:#fff;border-radius:5px;box-sizing:border-box}
         button.submit{width:100%;padding:15px;background:#00d4ff;border:none;color:#000;font-weight:bold;border-radius:5px;cursor:pointer;margin-top:10px}
-        .gamebox{display:none;background:#0f0f1a;padding:10px;margin-top:10px;border-radius:5px}
+        .gamebox{display:none;background:#0f0f1a;padding:10px;margin-top:10px;border-radius:5px;text-align:center}
         .card{background:#16162a;border:1px solid #2a2a4a;border-radius:10px;padding:15px;margin-bottom:15px}
-        .actions{display:flex;gap:10px;margin-top:10px}
-        .btn-primary{background:#00d4ff;color:#000;padding:8px;border-radius:5px;border:none;cursor:pointer}
-        .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00ff88;color:#000;padding:10px 20px;border-radius:5px;display:none;z-index:2000}
-        .toast.show{display:block}
+        .fav-btn{color:#ffcc00;cursor:pointer;font-size:20px;float:right}
         .hidden{display:none}
     </style>
 </head>
@@ -29,77 +25,60 @@
 
 <div class="header"><div class="logo">🦊 ScriptFox</div></div>
 <div class="nav">
-    <button class="active" onclick="showTab('upload')">Upload</button>
-    <button onclick="showTab('scripts')">Scripts</button>
+    <button class="active" onclick="showTab('upload', this)">Upload</button>
+    <button onclick="showTab('scripts', this)">Scripts</button>
+    <button onclick="showTab('favs', this)">Favorites</button>
     <button onclick="ownerTab()">Owner</button>
 </div>
 
 <div class="container">
     <div id="upload" class="tab">
         <div class="box">
-            <h3>Upload Script</h3>
             <input type="text" id="t" placeholder="Script name">
             <input type="number" id="g" placeholder="Game ID" onkeyup="detect()">
-            <div class="gamebox" id="gb"><img id="gi" width="60" height="60"><span id="gn" style="margin-left:10px;color:#00d4ff"></span></div>
+            <div class="gamebox" id="gb"><img id="gi" width="60" height="60"><p id="gn"></p></div>
             <textarea id="c" placeholder="Script code"></textarea>
             <button class="submit" onclick="submit()">Submit</button>
         </div>
     </div>
-
-    <div id="scripts" class="tab hidden">
-        <div id="sl"></div>
-    </div>
-    
-    <div id="owner" class="tab hidden">
-        <h4>Pending Approval</h4>
-        <div id="pl"></div>
-    </div>
+    <div id="scripts" class="tab hidden"><div id="sl"></div></div>
+    <div id="favs" class="tab hidden"><div id="fl"></div></div>
+    <div id="owner" class="tab hidden"><h4>Pending Approval</h4><div id="pl"></div></div>
 </div>
-
-<div class="toast" id="toast"></div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.4/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.6.4/firebase-database.js";
 
-  const firebaseConfig = {
+  const app = initializeApp({
     apiKey: "AIzaSyCvyceW-xg9thFEblncqSg8PVJFG3DKo5w",
-    authDomain: "scriptfox.firebaseapp.com",
     projectId: "scriptfox",
-    storageBucket: "scriptfox.firebasestorage.app",
-    messagingSenderId: "717661571463",
-    appId: "1:717661571463:web:64b828b3437aa0645eeb22",
-    measurementId: "G-GCG0HC0YED"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app, "https://scriptfox-default-rtdb.asia-southeast1.firebasedatabase.app");
-
-  // Sync Data
-  onValue(ref(db, 'scripts/'), (snapshot) => {
-    window.scripts = snapshot.val() || [];
-    renderScripts();
-    renderOwner();
+    databaseURL: "https://scriptfox-default-rtdb.asia-southeast1.firebasedatabase.app"
   });
 
-  // Global Save Function
-  window.saveToFirebase = function(data) {
-    set(ref(db, 'scripts/'), data);
-  };
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'scripts/');
+  window.favs = JSON.parse(localStorage.getItem('favs') || '[]');
+
+  onValue(dbRef, (snapshot) => {
+    window.scripts = snapshot.val() || [];
+    render();
+  });
+
+  window.saveToFirebase = (data) => set(dbRef, data);
 </script>
 
 <script>
 window.scripts = [];
-var isOwner = false;
 
-function showTab(n){
+function showTab(n, btn){
     document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'));
     document.getElementById(n).classList.remove('hidden');
+    if(btn){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active')); btn.classList.add('active');}
 }
 
 function detect(){
-    var id=document.getElementById('g').value;
-    var box=document.getElementById('gb');
+    let id=document.getElementById('g').value, box=document.getElementById('gb');
     if(!id){box.style.display='none';return;}
     box.style.display='block';
     document.getElementById('gn').textContent = "Game ID: " + id;
@@ -107,70 +86,39 @@ function detect(){
 }
 
 function submit(){
-    var t=document.getElementById('t').value;
-    var g=document.getElementById('g').value;
-    var c=document.getElementById('c').value;
-
-    if(!t || !g || !c) { alert("Fill everything!"); return; }
-
-    window.scripts.push({
-        id: Date.now(),
-        title: t,
-        gameId: g,
-        code: c,
-        status: 'pending'
-    });
-
-    if(window.saveToFirebase) {
-        window.saveToFirebase(window.scripts);
-        toast("Sent for approval!");
-    }
-    
-    document.getElementById('t').value='';
-    document.getElementById('g').value='';
-    document.getElementById('c').value='';
+    let t=document.getElementById('t').value, g=document.getElementById('g').value, c=document.getElementById('c').value;
+    if(!t || !g || !c) return alert("Fill everything!");
+    window.scripts.push({ id: Date.now(), title: t, gameId: g, code: c, status: 'pending' });
+    window.saveToFirebase(window.scripts);
+    alert("Sent for approval!");
 }
 
-function renderScripts(){
-    var a = window.scripts.filter(s => s.status == 'approved');
-    var h = '';
-    a.forEach(s => {
-        h += `<div class="card"><h4>${s.title}</h4><button class="btn-primary" onclick="alert('Code: ${s.code}')">View Code</button></div>`;
-    });
-    document.getElementById('sl').innerHTML = h || 'No approved scripts yet.';
+function toggleFav(id){
+    if(window.favs.includes(id)) window.favs = window.favs.filter(x => x != id);
+    else window.favs.push(id);
+    localStorage.setItem('favs', JSON.stringify(window.favs));
+    render();
 }
 
-function renderOwner(){
-    var p = window.scripts.filter(s => s.status == 'pending');
-    var h = '';
-    p.forEach(s => {
-        h += `<div class="card"><h4>${s.title}</h4><button onclick="approve(${s.id})">Approve</button></div>`;
+function render(){
+    let sl = document.getElementById('sl'), fl = document.getElementById('fl'), h='', fh='';
+    window.scripts.filter(s => s.status == 'approved').forEach(s => {
+        let card = `<div class="card"><span class="fav-btn" onclick="toggleFav(${s.id})">${window.favs.includes(s.id)?'★':'☆'}</span><h4>${s.title}</h4><button onclick="alert('${s.code}')">View Code</button></div>`;
+        h += card;
+        if(window.favs.includes(s.id)) fh += card;
     });
-    document.getElementById('pl').innerHTML = h || 'No pending scripts.';
+    sl.innerHTML = h; fl.innerHTML = fh;
 }
 
 function approve(id){
-    var s = window.scripts.find(x => x.id == id);
-    if(s) s.status = 'approved';
-    window.saveToFirebase(window.scripts);
+    let s = window.scripts.find(x => x.id == id);
+    if(s) { s.status = 'approved'; window.saveToFirebase(window.scripts); }
 }
 
 function ownerTab(){
-    var p = prompt("Enter Owner Password:");
-    if(p == "Ilovesofia26") {
-        showTab('owner');
-    } else {
-        alert("Wrong!");
-    }
-}
-
-function toast(m){
-    var t=document.getElementById('toast');
-    t.textContent=m;
-    t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 3000);
+    if(prompt("Password:") == "Ilovesofia26") showTab('owner');
+    else alert("Wrong!");
 }
 </script>
-
 </body>
 </html>
