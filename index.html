@@ -65,13 +65,11 @@
         <div class="box">
             <h3 style="margin-top:0">Publish Script</h3>
             <div class="warning-text">Quality Standards: Submissions must include a valid loadstring, a functional game link, and a descriptive summary. Failure to adhere to these standards will result in immediate rejection. Any attempt to upload spam or malicious code will result in a permanent account suspension.</div>
-            
             <input type="text" id="t" placeholder="Script Title">
             <textarea id="d" placeholder="Script Description / Features"></textarea>
             <input type="text" id="g" placeholder="Paste Roblox Game Link..." oninput="validateGame()">
             <span id="id-status" class="id-status">Waiting for link...</span>
             <textarea id="c" placeholder="Paste loadstring here..."></textarea>
-            
             <button id="submit-btn" class="btn-action btn-disabled" onclick="submit()" disabled>Verify Credentials First</button>
         </div>
     </div>
@@ -176,6 +174,7 @@ function approve(id){ let s=window.scripts.find(x=>x.id==id); s.status='approved
 function reject(id){ if(confirm("Confirm deletion?")){ window.scripts=window.scripts.filter(x=>x.id!=id); window.saveToFirebase(window.scripts); } }
 
 function renderOwner(){
+    if(!window.isLoggedIn) return;
     let h='';
     window.scripts.filter(s=>s.status=='pending').forEach(s=>{
         h+=`
