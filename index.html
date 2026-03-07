@@ -35,6 +35,7 @@
     <div id="upload" class="tab">
         <div class="box">
             <input type="text" id="t" placeholder="Script name">
+            <input type="text" id="d" placeholder="Description">
             <input type="number" id="g" placeholder="Game ID" onkeyup="detect()">
             <div class="gamebox" id="gb"><img id="gi" width="60" height="60"><p id="gn"></p></div>
             <textarea id="c" placeholder="Script code"></textarea>
@@ -86,11 +87,12 @@ function detect(){
 }
 
 function submit(){
-    let t=document.getElementById('t').value, g=document.getElementById('g').value, c=document.getElementById('c').value;
-    if(!t || !g || !c) return alert("Fill everything!");
-    window.scripts.push({ id: Date.now(), title: t, gameId: g, code: c, status: 'pending' });
+    let t=document.getElementById('t').value, d=document.getElementById('d').value, g=document.getElementById('g').value, c=document.getElementById('c').value;
+    if(!t || !g || !c || !d) return alert("Fill everything!");
+    window.scripts.push({ id: Date.now(), title: t, desc: d, gameId: g, code: c, status: 'pending' });
     window.saveToFirebase(window.scripts);
     alert("Sent for approval!");
+    document.getElementById('t').value=''; document.getElementById('d').value=''; document.getElementById('g').value=''; document.getElementById('c').value='';
 }
 
 function toggleFav(id){
@@ -103,11 +105,20 @@ function toggleFav(id){
 function render(){
     let sl = document.getElementById('sl'), fl = document.getElementById('fl'), h='', fh='';
     window.scripts.filter(s => s.status == 'approved').forEach(s => {
-        let card = `<div class="card"><span class="fav-btn" onclick="toggleFav(${s.id})">${window.favs.includes(s.id)?'★':'☆'}</span><h4>${s.title}</h4><button onclick="alert('${s.code}')">View Code</button></div>`;
+        let card = `<div class="card"><span class="fav-btn" onclick="toggleFav(${s.id})">${window.favs.includes(s.id)?'★':'☆'}</span><h4>${s.title}</h4><p>${s.desc}</p><button onclick="alert('${s.code}')">View Code</button></div>`;
         h += card;
         if(window.favs.includes(s.id)) fh += card;
     });
     sl.innerHTML = h; fl.innerHTML = fh;
+    renderOwner();
+}
+
+function renderOwner(){
+    let h = '';
+    window.scripts.filter(s => s.status == 'pending').forEach(s => {
+        h += `<div class="card"><h4>${s.title}</h4><p>${s.desc}</p><button onclick="approve(${s.id})">Approve</button></div>`;
+    });
+    document.getElementById('pl').innerHTML = h || 'No pending scripts.';
 }
 
 function approve(id){
