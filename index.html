@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScriptFox</title>
+<style>
+body{font-family:Arial,sans-serif;background:#1a1a2e;color:#fff;margin:0;padding:0}
+.header{background:#0f0f1a;padding:20px;text-align:center;border-bottom:2px solid #00d4ff}
+.logo{font-size:24px;font-weight:bold;color:#00d4ff}
+.nav{display:flex;justify-content:center;gap:10px;padding:10px;background:#16162a}
+.nav button{padding:10px 20px;border:2px solid #2a2a4a;background:transparent;color:#888;border-radius:20px;cursor:pointer}
+.nav button.active{background:#00d4ff;color:#000;border-color:#00d4ff}
+.container{max-width:800px;margin:0 auto;padding:20px}
+.box{background:#16162a;border-radius:10px;padding:20px;margin-bottom:20px;border:1px solid #2a2a4a}
+input,select,textarea{width:100%;padding:10px;margin:5px 0;background:#0f0f1a;border:1px solid #2a2a4a;color:#fff;border-radius:5px}
+textarea{height:100px}
+button.submit{width:100%;padding:15px;background:#00d4ff;border:none;color:#000;font-weight:bold;border-radius:5px;cursor:pointer;margin-top:10px}
+.gamebox{display:none;background:#0f0f1a;padding:10px;margin-top:10px;border-radius:5px}
+.ownerbox{background:rgba(255,215,0,0.1);border:1px solid #ffd700;padding:15px;margin:15px 0;border-radius:5px;cursor:pointer}
+.ownerbox.active{background:rgba(255,215,0,0.2)}
+.pass{display:none;margin-top:10px}
+.card{background:#16162a;border:1px solid #2a2a4a;border-radius:10px;padding:15px;margin-bottom:15px}
+.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:12px;background:#00ff88;color:#000}
+.badge.pending{background:#ff4757;color:#fff}
+.actions{display:flex;gap:10px;margin-top:10px}
+.actions button{flex:1;padding:10px;border:none;border-radius:5px;cursor:pointer}
+.btn-primary{background:#00d4ff;color:#000}
+.btn-success{background:#00ff88;color:#000}
+.btn-danger{background:#ff4757;color:#fff}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);justify-content:center;align-items:center;z-index:1000}
+.modal.show{display:flex}
+.modal-content{background:#16162a;padding:20px;border-radius:10px;border:2px solid #00d4ff;width:90%;max-width:300px;text-align:center}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00ff88;color:#000;padding:10px 20px;border-radius:5px;display:none;z-index:2000}
+.toast.show{display:block}
+.toast.error{background:#ff4757;color:#fff}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<div class="header"><div class="logo">🦊 ScriptFox</div></div>
+
+<div class="nav">
+<button class="active" onclick="showTab('upload')">Upload</button>
+<button onclick="showTab('scripts')">Scripts</button>
+<button onclick="showTab('favorites')">Favorites</button>
+<button onclick="ownerTab()">Owner</button>
+</div>
+
+<div class="container">
+
+<div id="upload" class="tab">
+<div class="box">
+<h3>Upload Script</h3>
+<input type="text" id="t" placeholder="Script name">
+<input type="number" id="g" placeholder="Game ID" onkeyup="detect()">
+<div class="gamebox" id="gb"><img id="gi" width="60" height="60" style="border-radius:5px"><span id="gn" style="margin-left:10px;color:#00d4ff"></span></div>
+<select id="ty"><option value="exploit">Exploit</option><option value="autofarm">Auto Farm</option><option value="gui">GUI</option><option value="teleport">Teleport</option></select>
+<textarea id="c" placeholder="Script code"></textarea>
+<textarea id="d" placeholder="Description" style="height:60px"></textarea>
+
+<div class="ownerbox" id="ob" onclick="toggleOwner()">
+<input type="checkbox" id="oc" style="width:auto" onclick="event.stopPropagation()"> I am owner (instant upload)
+<div class="pass" id="op"><input type="password" id="pw" placeholder="Password"></div>
+</div>
+
+<button class="submit" onclick="submit()">Submit</button>
+</div>
+</div>
+
+<div id="scripts" class="tab hidden">
+<input type="text" id="s" placeholder="Search..." onkeyup="renderScripts()" style="margin-bottom:10px">
+<div id="sl"></div>
+</div>
+
+<div id="favorites" class="tab hidden">
+<div id="fl"></div>
+</div>
+
+<div id="owner" class="tab hidden">
+<div class="box">
+<h3>Stats</h3>
+<p>Pending: <span id="sp">0</span> | Approved: <span id="sa">0</span> | Total: <span id="st">0</span></p>
+</div>
+<h4 style="color:#ff4757">Pending</h4>
+<div id="pl"></div>
+<h4 style="color:#00ff88">Approved</h4>
+<div id="al"></div>
+</div>
+
+</div>
+
+<div class="modal" id="pm"><div class="modal-content">
+<h3>🔒 Owner Login</h3>
+<input type="password" id="pi" placeholder="Password">
+<button class="submit" onclick="checkOwner()">Login</button>
+<p id="pe" style="color:#ff4757;display:none">Wrong!</p>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var OWNER='Ilovesofia26';
+var scripts=JSON.parse(localStorage.getItem('scripts'))||[];
+var favs=JSON.parse(localStorage.getItem('favs'))||[];
+var isOwner=false;
+var ownerMode=false;
+var currentGame=null;
+
+var GAMES={
+'131623223084840':['Escape Tsunami','Brainrot'],
+'920587237':['Adopt Me!','Uplift'],
+'109983668079237':['Steal Brainrot','Brainrot'],
+'142823291':['MM2','Nikilis'],
+'1537690962':['Bee Swarm','Onett'],
+'2753915549':['Blox Fruits','Gamer Robot'],
+'286090429':['Arsenal','ROLVe'],
+'606849621':['Jailbreak','Badimo'],
+'292439477':['Phantom','StyLiS'],
+'3101667897':['Legends Speed','Scriptbloxian'],
+'4616652589':['Project Slayers','Ouw0pp'],
+'189707':['Natural Disaster','Stickmasterluke'],
+'6284583030':['Pet Sim X','BIG Games'],
+'9872472334':['Evade','Evade'],
+'3956818381':['Ninja Legends','Scriptbloxian'],
+'5732973455':['SCP','SCP']
+};
+
+if(!scripts.length){
+scripts=[{id:1,title:'Demo',gameId:'2753915549',gameName:'Blox Fruits',gameCreator:'Gamer',type:'autofarm',code:'--demo',desc:'Demo',status:'approved',author:'Owner',date:'Now',isOwner:true}];
+save();
+}
+
+function save(){localStorage.setItem('scripts',JSON.stringify(scripts));localStorage.setItem('favs',JSON.stringify(favs));}
+
+function showTab(n){
+document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'));
+document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+document.getElementById(n).classList.remove('hidden');
+var tabs=['upload','scripts','favorites','owner'];
+var idx=tabs.indexOf(n);
+if(idx>-1)document.querySelectorAll('.nav button')[idx].classList.add('active');
+if(n=='scripts')renderScripts();
+if(n=='favorites')renderFavs();
+if(n=='owner'&&isOwner)renderOwner();
+}
+
+function detect(){
+var id=document.getElementById('g').value;
+var box=document.getElementById('gb');
+if(!id){box.style.display='none';return;}
+box.style.display='block';
+currentGame=GAMES[id]||['Game '+id,'Unknown'];
+document.getElementById('gn').textContent=currentGame[0];
+document.getElementById('gi').src='https://assetgame.roblox.com/Game/Tools/ThumbnailAsset.ashx?aid='+id+'&fmt=png&wd=420&ht=420';
+}
+
+function toggleOwner(){
+ownerMode=!ownerMode;
+document.getElementById('oc').checked=ownerMode;
+var box=document.getElementById('ob');
+var pass=document.getElementById('op');
+if(ownerMode){
+box.classList.add('active');
+pass.style.display='block';
+}else{
+box.classList.remove('active');
+pass.style.display='none';
+document.getElementById('pw').value='';
+}
+}
+
+function submit(){
+var t=document.getElementById('t').value;
+var g=document.getElementById('g').value;
+var c=document.getElementById('c').value;
+var ty=document.getElementById('ty').value;
+var d=document.getElementById('d').value;
+var p=document.getElementById('pw').value;
+
+if(!t||!g||!c){toast('Fill all fields!','e');return;}
+if(ownerMode&&p!=OWNER){toast('Wrong password!','e');return;}
+
+scripts.push({
+id:Date.now(),
+title:t,
+gameId:g,
+gameName:currentGame?currentGame[0]:'Game '+g,
+gameCreator:currentGame?currentGame[1]:'Unknown',
+type:ty,
+code:c,
+desc:d,
+status:ownerMode?'approved':'pending',
+author:ownerMode?'Owner':'Member',
+date:new Date().toLocaleString(),
+isOwner:ownerMode
+});
+
+save();
+toast(ownerMode?'Uploaded!':'Pending!');
+document.getElementById('t').value='';
+document.getElementById('g').value='';
+document.getElementById('c').value='';
+document.getElementById('d').value='';
+document.getElementById('gb').style.display='none';
+if(ownerMode)toggleOwner();
+currentGame=null;
+}
+
+function renderScripts(){
+var q=document.getElementById('s').value.toLowerCase();
+var a=scripts.filter(s=>s.status=='approved'&&(!q||s.title.toLowerCase().includes(q)||s.gameName.toLowerCase().includes(q)));
+var h='';
+for(var i=0;i<a.length;i++){
+var s=a[i];
+h+='<div class="card"><h4>'+esc(s.title)+(s.isOwner?' <span style="color:#00d4ff">✓</span>':'')+'</h4><p>🎮 '+esc(s.gameName)+'</p><div style="background:#0f0f1a;padding:10px;font-family:monospace;font-size:12px;color:#00ff88">'+esc(s.code.slice(0,50))+'...</div><div class="actions"><button class="btn-primary" onclick="view('+s.id+')">View</button><button class="btn-success" onclick="copy('+s.id+')">Copy</button><button onclick="addFav('+s.id+')" style="background:'+(favs.includes(s.id)?'#ffd700':'#2a2a4a')+'">★</button></div></div>';
+}
+document.getElementById('sl').innerHTML=h||'<p style="text-align:center;color:#666">No scripts</p>';
+}
+
+function renderFavs(){
+var f=scripts.filter(s=>favs.includes(s.id)&&s.status=='approved');
+var h='';
+for(var i=0;i<f.length;i++){
+var s=f[i];
+h+='<div class="card"><h4>'+esc(s.title)+'</h4><p>🎮 '+esc(s.gameName)+'</p><div class="actions"><button class="btn-primary" onclick="view('+s.id+')">View</button><button class="btn-danger" onclick="remFav('+s.id+')">Remove</button></div></div>';
+}
+document.getElementById('fl').innerHTML=h||'<p style="text-align:center;color:#666">No favorites</p>';
+}
+
+function addFav(id){
+if(!favs.includes(id)){
+favs.push(id);
+toast('Added!');
+}else{
+favs=favs.filter(x=>x!=id);
+toast('Removed!');
+}
+save();
+renderScripts();
+}
+
+function remFav(id){
+favs=favs.filter(x=>x!=id);
+save();
+renderFavs();
+toast('Removed!');
+}
+
+function copy(id){
+var s=scripts.find(x=>x.id==id);
+var t=document.createElement('textarea');
+t.value=s.code;
+document.body.appendChild(t);
+t.select();
+document.execCommand('copy');
+document.body.removeChild(t);
+toast('Copied!');
+}
+
+function view(id){
+var s=scripts.find(x=>x.id==id);
+var w=window.open('','_blank');
+w.document.write('<pre style="background:#0f0f1a;color:#00ff88;padding:20px">'+esc(s.code)+'</pre>');
+}
+
+function ownerTab(){
+if(isOwner){
+showTab('owner');
+renderOwner();
+}else{
+document.getElementById('pm').classList.add('show');
+}
+}
+
+function checkOwner(){
+if(document.getElementById('pi').value==OWNER){
+isOwner=true;
+document.getElementById('pm').classList.remove('show');
+document.getElementById('pi').value='';
+showTab('owner');
+renderOwner();
+toast('Welcome Owner!');
+}else{
+document.getElementById('pe').style.display='block';
+}
+}
+
+function renderOwner(){
+var p=scripts.filter(s=>s.status=='pending');
+var a=scripts.filter(s=>s.status=='approved');
+document.getElementById('sp').textContent=p.length;
+document.getElementById('sa').textContent=a.length;
+document.getElementById('st').textContent=scripts.length;
+
+var h='';
+for(var i=0;i<p.length;i++){
+var s=p[i];
+h+='<div class="card" style="border-left:3px solid #ff4757"><h4>'+esc(s.title)+'</h4><p>'+s.type+' | '+s.author+'</p><div class="actions"><button class="btn-success" onclick="app('+s.id+')">Approve</button><button class="btn-danger" onclick="rej('+s.id+')">Reject</button></div></div>';
+}
+document.getElementById('pl').innerHTML=h||'<p style="color:#666">No pending</p>';
+
+h='';
+for(var i=0;i<a.length;i++){
+var s=a[i];
+h+='<div class="card" style="border-left:3px solid #00ff88"><h4>'+esc(s.title)+'</h4><p>'+(s.isOwner?'👑':'👤')+' | '+s.date+'</p><button class="btn-danger" onclick="del('+s.id+')" style="width:100%;margin-top:10px">Delete</button></div>';
+}
+document.getElementById('al').innerHTML=h||'<p style="color:#666">No approved</p>';
+}
+
+function app(id){
+var s=scripts.find(x=>x.id==id);
+s.status='approved';
+save();
+renderOwner();
+toast('Approved!');
+}
+
+function rej(id){
+scripts=scripts.filter(x=>x.id!=id);
+save();
+renderOwner();
+toast('Rejected!');
+}
+
+function del(id){
+if(confirm('Delete?')){
+scripts=scripts.filter(x=>x.id!=id);
+save();
+renderOwner();
+toast('Deleted!');
+}
+}
+
+function esc(t){
+var d=document.createElement('div');
+d.textContent=t;
+return d.innerHTML;
+}
+
+function toast(m,e){
+var t=document.getElementById('toast');
+t.textContent=m;
+t.className='toast show'+(e?' error':'');
+setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+document.getElementById('pm').onclick=function(e){
+if(e.target==this)this.classList.remove('show');
+}
+</script>
+
+</body>
+</html>
